@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="פיגור זמנים">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f4f5f7">
+<title>בדיקת פיגורי זמנים DVR</title>
+<style>
+:root{
+  --bg:#f4f5f7;--card:#fff;--text:#14181f;--muted:#6a7280;--line:#e3e6eb;
+  --primary:#1f6feb;--primary-t:#fff;--late:#d1342f;--early:#b9770e;--ok:#1a8f4c;
+  --chip:#eef1f6;--shadow:0 1px 3px rgba(0,0,0,.08);
+}
+[data-theme=dark]{
+  --bg:#0e1116;--card:#181c23;--text:#eaeef5;--muted:#8d97a7;--line:#2a303a;
+  --primary:#4c8dff;--primary-t:#fff;--late:#ff6b66;--early:#f0b04a;--ok:#4cc47d;
+  --chip:#232934;--shadow:none;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Arial Hebrew",Arial,sans-serif}
+body{min-height:100vh;padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(96px + env(safe-area-inset-bottom)) env(safe-area-inset-left)}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 8px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.icon-btn{width:44px;height:44px;border-radius:50%;background:var(--card);box-shadow:var(--shadow);border:1px solid var(--line);font-size:20px}
+main{padding:8px 16px;max-width:640px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0;box-shadow:var(--shadow)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.name{font-weight:700;font-size:17px;word-break:break-word}
+.note{color:var(--muted);font-size:13px;margin-top:2px;word-break:break-word;white-space:pre-wrap}
+.status{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;color:#fff}
+.status.late{background:var(--late)}.status.early{background:var(--early)}.status.ok{background:var(--ok)}
+.times{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.t{background:var(--chip);border-radius:12px;padding:8px 10px}
+.t small{display:block;color:var(--muted);font-size:11px}
+.t b{font-size:14px;font-variant-numeric:tabular-nums}
+.diff{display:flex;gap:8px;margin-top:4px}
+.unit{flex:1;text-align:center;border:1px solid var(--line);border-radius:12px;padding:8px 4px}
+.unit .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.unit .l{font-size:12px;color:var(--muted)}
+.late .n,.diff.late .n{color:var(--late)}
+.diff.early .n{color:var(--early)}.diff.ok .n{color:var(--ok)}
+.dir{font-size:13px;color:var(--muted);margin-top:8px;text-align:center}
+.actions{display:flex;gap:8px;margin-top:12px}
+.btn{flex:1;padding:10px;border-radius:12px;background:var(--chip);font-size:14px;font-weight:600}
+.btn.danger{color:var(--late)}
+.btn.primary{background:var(--primary);color:var(--primary-t)}
+.empty{text-align:center;color:var(--muted);padding:48px 16px;line-height:1.7}
+.fab{position:fixed;left:16px;bottom:calc(20px + env(safe-area-inset-bottom));background:var(--primary);color:var(--primary-t);
+  padding:14px 20px;border-radius:999px;font-weight:700;font-size:16px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:10}
+.overlay.open{display:flex}
+.sheet{background:var(--card);width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+.sheet h2{margin:0 0 12px;font-size:19px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+input,textarea{width:100%;font:inherit;font-size:16px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px;min-height:44px}
+input[type=datetime-local]{direction:ltr;text-align:right}
+.row{display:flex;gap:8px;align-items:stretch}
+.row input{flex:1}
+.now{padding:0 14px;border-radius:12px;background:var(--chip);font-weight:600;font-size:14px;white-space:nowrap}
+.preview{margin-top:14px;padding:12px;border-radius:12px;background:var(--chip);text-align:center;font-weight:700}
+.err{color:var(--late);font-size:13px;margin-top:8px;min-height:18px}
+.sheet .actions{margin-top:10px}
+.center-dlg{align-items:center;padding:20px}
+.center-dlg .sheet{border-radius:20px;max-width:360px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>פיגורי זמנים DVR</h1>
+    <div class="sub">הפרש בין שעון המערכת לשעה בפועל</div>
+  </div>
+  <button class="icon-btn" id="themeBtn" aria-label="החלף מצב תצוגה">🌓</button>
+</header>
+<main id="list"></main>
+<button class="fab" id="addBtn">＋ בדיקה חדשה</button>
+
+<div class="overlay" id="formOv">
+  <div class="sheet">
+    <h2 id="formTitle">בדיקה חדשה</h2>
+    <label for="fName">שם / מזהה המערכת</label>
+    <input id="fName" placeholder="לדוגמה: DVR כניסה ראשית">
+    <label for="fDvr">תאריך ושעה במערכת ה-DVR</label>
+    <input type="datetime-local" id="fDvr">
+    <label for="fCheck">תאריך ושעה בפועל (בעת הבדיקה)</label>
+    <div class="row">
+      <input type="datetime-local" id="fCheck">
+      <button type="button" class="now" id="nowBtn">עכשיו</button>
+    </div>
+    <label for="fNote">הערות (אופציונלי)</label>
+    <textarea id="fNote" rows="2"></textarea>
+    <div class="preview" id="preview">מלא את שני התאריכים לחישוב</div>
+    <div class="err" id="err"></div>
+    <div class="actions">
+      <button class="btn" id="cancelBtn">ביטול</button>
+      <button class="btn primary" id="saveBtn">שמירה</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center-dlg" id="delOv">
+  <div class="sheet">
+    <h2>למחוק את הבדיקה?</h2>
+    <div class="note" id="delName"></div>
+    <div class="actions">
+      <button class="btn" id="delNo">ביטול</button>
+      <button class="btn danger" id="delYes">מחיקה</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY='dvr-lag-records-v1', TKEY='dvr-lag-theme-v1';
+  var mem={};
+  function load(k){try{var v=localStorage.getItem(k);return v===null?(mem[k]||null):v}catch(e){return mem[k]||null}}
+  function save(k,v){mem[k]=v;try{localStorage.setItem(k,v)}catch(e){}}
+
+  var records=[];
+  try{records=JSON.parse(load(KEY)||'[]')}catch(e){records=[]}
+  function persist(){save(KEY,JSON.stringify(records))}
+
+  var mq=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)');
+  function applyTheme(){
+    var t=load(TKEY);
+    var dark=t?t==='dark':(mq&&mq.matches);
+    document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+    var m=document.querySelector('meta[name=theme-color]');
+    if(m)m.setAttribute('content',dark?'#0e1116':'#f4f5f7');
+    document.getElementById('themeBtn').textContent=dark?'☀️':'🌙';
+  }
+  document.getElementById('themeBtn').onclick=function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    save(TKEY,cur==='dark'?'light':'dark');applyTheme();
+  };
+  if(mq&&mq.addEventListener)mq.addEventListener('change',function(){if(!load(TKEY))applyTheme()});
+  applyTheme();
+
+  function toMs(s){
+    var m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(s||'');
+    if(!m)return null;
+    return Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5]);
+  }
+  function calc(dvr,check){
+    var a=toMs(dvr),b=toMs(check);
+    if(a===null||b===null)return null;
+    var d=b-a, abs=Math.abs(d)/60000;
+    return {sign:d===0?0:(d>0?1:-1),days:Math.floor(abs/1440),hours:Math.floor(abs%1440/60),mins:Math.round(abs%60)};
+  }
+  function describe(r){
+    if(!r)return '';
+    if(r.sign===0)return 'אין הפרש – השעון מדויק';
+    return r.days+' ימים, '+r.hours+' שעות ו-'+r.mins+' דקות — '+(r.sign>0?'ה-DVR מפגר':'ה-DVR מקדים');
+  }
+  function fmt(s){
+    var m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(s||'');
+    return m?m[3]+'/'+m[2]+'/'+m[1]+'  '+m[4]+':'+m[5]:'—';
+  }
+  function nowLocal(){
+    var d=new Date(),p=function(n){return String(n).padStart(2,'0')};
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+  }
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+
+  var listEl=document.getElementById('list');
+  function render(){
+    if(!records.length){
+      listEl.innerHTML='<div class="empty">אין בדיקות עדיין.<br>לחץ על "בדיקה חדשה" כדי להזין את שעון ה-DVR והשעה בפועל.</div>';
+      return;
+    }
+    listEl.innerHTML=records.map(function(x){
+      var r=calc(x.dvr,x.check);
+      var cls=r.sign>0?'late':r.sign<0?'early':'ok';
+      var label=r.sign>0?'DVR מפגר':r.sign<0?'DVR מקדים':'תקין';
+      return '<div class="card" data-id="'+x.id+'">'+
+        '<div class="card-top"><div><div class="name">'+esc(x.name||'ללא שם')+'</div>'+
+        (x.note?'<div class="note">'+esc(x.note)+'</div>':'')+'</div>'+
+        '<span class="status '+cls+'">'+label+'</span></div>'+
+        '<div class="times"><div class="t"><small>שעון DVR</small><b>'+fmt(x.dvr)+'</b></div>'+
+        '<div class="t"><small>שעה בפועל</small><b>'+fmt(x.check)+'</b></div></div>'+
+        '<div class="diff '+cls+'">'+
+        '<div class="unit"><div class="n">'+r.days+'</div><div class="l">ימים</div></div>'+
+        '<div class="unit"><div class="n">'+r.hours+'</div><div class="l">שעות</div></div>'+
+        '<div class="unit"><div class="n">'+r.mins+'</div><div class="l">דקות</div></div></div>'+
+        '<div class="dir">'+esc(describe(r))+'</div>'+
+        '<div class="actions"><button class="btn" data-act="edit">עריכה</button>'+
+        '<button class="btn danger" data-act="del">מחיקה</button></div></div>';
+    }).join('');
+  }
+  listEl.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-act]');if(!b)return;
+    var id=b.closest('.card').getAttribute('data-id');
+    if(b.dataset.act==='edit')openForm(id);else askDelete(id);
+  });
+
+  var ov=document.getElementById('formOv'),editId=null;
+  var fName=document.getElementById('fName'),fDvr=document.getElementById('fDvr'),
+      fCheck=document.getElementById('fCheck'),fNote=document.getElementById('fNote'),
+      prev=document.getElementById('preview'),err=document.getElementById('err');
+  function updatePreview(){
+    var r=calc(fDvr.value,fCheck.value);
+    prev.textContent=r?describe(r):'מלא את שני התאריכים לחישוב';
+  }
+  fDvr.oninput=fCheck.oninput=updatePreview;
+  document.getElementById('nowBtn').onclick=function(){fCheck.value=nowLocal();updatePreview()};
+  function openForm(id){
+    editId=id||null;err.textContent='';
+    var x=id?records.find(function(r){return r.id===id}):null;
+    document.getElementById('formTitle').textContent=x?'עריכת בדיקה':'בדיקה חדשה';
+    fName.value=x?x.name:'';fDvr.value=x?x.dvr:'';
+    fCheck.value=x?x.check:nowLocal();fNote.value=x?x.note:'';
+    updatePreview();ov.classList.add('open');
+  }
+  function closeForm(){ov.classList.remove('open')}
+  document.getElementById('addBtn').onclick=function(){openForm()};
+  document.getElementById('cancelBtn').onclick=closeForm;
+  ov.addEventListener('click',function(e){if(e.target===ov)closeForm()});
+  document.getElementById('saveBtn').onclick=function(){
+    if(!fDvr.value||!fCheck.value){err.textContent='יש למלא תאריך ושעה גם ב-DVR וגם בפועל';return}
+    var o={name:fName.value.trim(),dvr:fDvr.value,check:fCheck.value,note:fNote.value.trim()};
+    if(editId){
+      records=records.map(function(r){return r.id===editId?Object.assign({},r,o):r});
+    }else{
+      o.id=String(Date.now())+Math.random().toString(36).slice(2,6);
+      records.unshift(o);
+    }
+    persist();render();closeForm();
+  };
+
+  var delOv=document.getElementById('delOv'),delId=null;
+  function askDelete(id){
+    delId=id;var x=records.find(function(r){return r.id===id});
+    document.getElementById('delName').textContent=x&&x.name?x.name:'';
+    delOv.classList.add('open');
+  }
+  document.getElementById('delNo').onclick=function(){delOv.classList.remove('open')};
+  delOv.addEventListener('click',function(e){if(e.target===delOv)delOv.classList.remove('open')});
+  document.getElementById('delYes').onclick=function(){
+    records=records.filter(function(r){return r.id!==delId});
+    persist();render();delOv.classList.remove('open');
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
